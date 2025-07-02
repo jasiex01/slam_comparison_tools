@@ -4,6 +4,7 @@ from skimage.metrics import structural_similarity as ssim
 from scipy.spatial.distance import directed_hausdorff
 import open3d as o3d
 import os
+from pathlib import Path
 
 def load_images(path1, path2):
     img1 = cv2.imread(path1)
@@ -28,7 +29,7 @@ def compute_iou(img1, img2, threshold=0.5):
     return intersection / union if union > 0 else 0
 
 
-def compute_adjustment_error(gt_map, slam_map, threshold=0.5):
+def compute_adjustment_error(gt_map, slam_map, threshold=128):
     """
     Compute Hausdorff distance-based adjustment error between 
     a ground truth map and a SLAM-generated map.
@@ -42,13 +43,8 @@ def compute_adjustment_error(gt_map, slam_map, threshold=0.5):
         float: Symmetric Hausdorff distance (max of directed distances)
     """
 
-    # Ensure the maps are in compatible dtype
-    if gt_map.dtype != np.uint8:
-        gt_bin = (gt_map < threshold).astype(np.uint8) * 255
-        slam_bin = (slam_map < threshold).astype(np.uint8) * 255
-    else:
-        gt_bin = (gt_map < threshold).astype(np.uint8) * 255
-        slam_bin = (slam_map < threshold).astype(np.uint8) * 255
+    gt_bin = (gt_map < threshold).astype(np.uint8) * 255
+    slam_bin = (slam_map < threshold).astype(np.uint8) * 255
 
     # Extract contours
     contours_gt, _ = cv2.findContours(gt_bin, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
@@ -117,24 +113,40 @@ def compute_icp_error(map1_img, map2_img, resolution=1.0):
 
 
 if __name__ == "__main__":
-    # === Replace these paths ===
-    #gmapping, slam_toolbox, lidar_rtabmap, rgbd_rtabmap, cartographer
-    path1 = "/home/jh/worlds-magisterka/test_results/warehouse/cartographer_map_cropped.pgm"
-    print(path1)
-    path2 = "/home/jh/worlds-magisterka/ground_truths/warehouse_ground_truth.pgm"
+    script_dir = Path(__file__).resolve().parent
+    data_dir = script_dir / "test_results"
 
-    if not (os.path.exists(path1) and os.path.exists(path2)):
-        print("Error: PGM files not found.")
-        exit(1)
+    slam_maps = [
+        "cartographer_map_cropped.pgm",
+        "slam_toolbox_map_cropped.pgm",
+        "lidar_rtabmap_map_cropped.pgm",
+        "rgbd_rtabmap_map_cropped.pgm",
+        "gmapping_map_cropped.pgm"
+    ]
 
-    slam_map, gt_map = load_images(path1, path2)
+    slam_worlds = [
+        "abstract",
+        "warehouse",
+        "office",
+    ]
 
+    for world in slam_worlds:
+        gt_path = script_dir / "ground_truths" / f"{world}_ground_truth.pgm"
+        for slam_map in slam_maps:
+            slam_map_path = data_dir / world / slam_map
+            if not (slam_map_path.exists() and gt_path.exists()):
+                print(f"Error: {slam_map_path} or {gt_path} not found.")
+                continue
 
+            print(f"Comparing {slam_map} with ground truth in {world}...")
 
-    # Compute metrics
-    (score, diff) = compute_ssim(slam_map, gt_map)
-    print(f"SSIM:           {score:.4f}")
-    print(f"IoU:            {compute_iou(slam_map, gt_map):.4f}")
-    print(f"Hausdorff Dist: {compute_adjustment_error(gt_map, slam_map):.2f}")
-    compute_icp_error(slam_map, gt_map)
+            slam_map_img, gt_map_img = load_images(slam_map_path, gt_path)
+
+            # Compute metrics
+            (score, diff) = compute_ssim(slam_map_img, gt_map_img)
+            print(f"SSIM for {slam_map}:           {score:.4f}")
+            print(f"IoU for {slam_map}:            {compute_iou(slam_map_img, gt_map_img):.4f}")
+            print(f"Hausdorff Dist for {slam_map}: {compute_adjustment_error(gt_map_img, slam_map_img):.2f}")
+            compute_icp_error(slam_map_img, gt_map_img)
+            print("-" * 40)
 
