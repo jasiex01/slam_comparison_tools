@@ -71,16 +71,7 @@ for (alg, map_name), grp in data.groupby(["Algorithm", "Map"]):
     plt.savefig(os.path.join(OUTPUT_DIR, f"trajectory_{alg}_{map_name}.png"))
     plt.close()
 
-# === PLOT 3: Boxplot of error distribution ===
-# plt.figure(figsize=(10, 6))
-# sns.boxplot(x="Algorithm", y="error", data=data)
-# plt.title("Distribution of position error for algorithms")
-# plt.ylabel("Position error [m]")
-# plt.tight_layout()
-# plt.savefig(os.path.join(OUTPUT_DIR, "boxplot_error_distribution.png"))
-# plt.close()
-
-# === PLOT 4: ECDF (Empirical Cumulative Distribution Function) ===
+# === PLOT 3: ECDF (Empirical Cumulative Distribution Function) ===
 plt.figure(figsize=(10, 6))
 for alg, grp in data.groupby("Algorithm"):
     errors = pd.to_numeric(grp["error"], errors='coerce').dropna()
@@ -97,7 +88,7 @@ plt.tight_layout()
 plt.savefig(os.path.join(OUTPUT_DIR, "ecdf_error.png"))
 plt.close()
 
-# === PLOT 5: Mean error of algorithms for each map ===
+# === PLOT 4: Mean error of algorithms for each map ===
 avg_errors = data.groupby(["Algorithm", "Map"])["error"].mean().reset_index()
 plt.figure(figsize=(10, 6))
 sns.barplot(data=avg_errors, x="Algorithm", y="error", hue="Map")
